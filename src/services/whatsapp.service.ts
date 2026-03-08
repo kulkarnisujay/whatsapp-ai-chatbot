@@ -7,6 +7,7 @@ import axios, { AxiosError } from 'axios';
 import whatsappConfig from '../config/whatsapp.config';
 import aiService from './ai.service';
 import leadService from './lead.service';
+import emailService from './email.service';
 import { createLogger } from '../utils/logger';
 import {
   WhatsAppMessage,
@@ -149,6 +150,25 @@ class WhatsAppService {
     log.debug(`AI response (${aiResponse.length} chars): "${aiResponse.substring(0, 80)}..."`);
 
     await this.sendTextMessage(senderInfo.phoneNumber, aiResponse);
+
+    // ─── Email Detection & Brochure Sending ──────────────────────────
+    const detectedEmail = emailService.extractEmail(textBody);
+    if (detectedEmail) {
+      log.info(`📧 Email detected from ${senderInfo.profileName}: ${detectedEmail}`);
+
+      // Save email to the lead record
+      leadService.updateLeadInfo(senderInfo.phoneNumber, { email: detectedEmail });
+
+      // Send company brochure email
+      const emailSent = await emailService.sendCompanyBrochure(detectedEmail, senderInfo.profileName);
+
+      if (emailSent) {
+        await this.sendTextMessage(
+          senderInfo.phoneNumber,
+          `✉️ I've just sent a detailed overview of our services and packages to *${detectedEmail}*! Please check your inbox (and spam folder, just in case). 😊\n\nIs there anything specific you'd like to discuss?`
+        );
+      }
+    }
   }
 
   /**
