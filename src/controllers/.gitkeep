@@ -1,0 +1,2 @@
+# This directory will contain HTTP request handler functions.
+# Controllers receive requests from routes and delegate to services.

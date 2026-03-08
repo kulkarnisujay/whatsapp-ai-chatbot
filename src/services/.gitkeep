@@ -1,0 +1,2 @@
+# This directory will contain core business logic.
+# Services handle WhatsApp API calls, AI agent logic, and integrations.

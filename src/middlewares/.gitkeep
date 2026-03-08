@@ -1,0 +1,2 @@
+# This directory will contain Express middleware.
+# Middleware handles security, error handling, and request validation.

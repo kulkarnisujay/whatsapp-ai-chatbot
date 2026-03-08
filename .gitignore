@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+dashboard/node_modules/
+
+# Build output
+dist/
+dashboard/dist/
+
+# Environment secrets (NEVER push these)
+.env
+
+# SQLite database
+data/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Test artifacts
+test_error.json
+test_out.txt
+testAI.ts
+testGroq.ts
+build_out.txt
