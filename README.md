@@ -46,6 +46,13 @@
 - AI drafts personalized, context-aware follow-up messages
 - Automatically sends via WhatsApp and logs to database
 
+### 📧 Email Brochure Auto-Send
+- **Auto-detects email addresses** in WhatsApp messages using regex
+- Sends a **beautifully designed HTML brochure** with services, pricing packages, and a CTA
+- Saves the email to the lead's database record
+- Confirms delivery via WhatsApp: *"✉️ I've sent the details to your email!"*
+- Uses Gmail SMTP (free, no external email service needed)
+
 ### 🔒 Security
 - Webhook signature verification
 - Environment-based API key management
@@ -64,6 +71,7 @@
 | **Database** | SQLite (better-sqlite3) | Zero-config, embedded, no external DB needed |
 | **Frontend** | React + Vite | Fast dev server, optimized builds |
 | **Messaging** | Meta WhatsApp Cloud API | Official WhatsApp Business integration |
+| **Email** | Nodemailer + Gmail SMTP | Free email delivery, no third-party service |
 | **Scheduling** | node-cron | Automated follow-up reminders |
 | **Icons** | Lucide React | Beautiful, consistent iconography |
 
@@ -93,6 +101,7 @@ whatsapp-ai-chatbot/
 │   │   ├── ai.service.ts             # Groq conversation engine + prompt
 │   │   ├── whatsapp.service.ts       # Message routing & sending
 │   │   ├── lead.service.ts           # Lead CRUD & conversation persistence
+│   │   ├── email.service.ts          # Email brochure auto-sender
 │   │   └── reminder.service.ts       # Automated follow-up cron engine
 │   ├── types/
 │   │   ├── whatsapp.types.ts         # Meta webhook payload types
@@ -148,6 +157,12 @@ WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
 
 # Groq AI (free at https://console.groq.com/keys)
 GROQ_API_KEY=gsk_your_groq_api_key
+
+# Email (Gmail SMTP — for auto-sending company brochures)
+# Generate an App Password at: https://myaccount.google.com/apppasswords
+EMAIL_USER=your_gmail@gmail.com
+EMAIL_PASS=your_16_char_app_password
+EMAIL_FROM_NAME=Aria | AI Assistant
 ```
 
 ### 3. Build & Run
