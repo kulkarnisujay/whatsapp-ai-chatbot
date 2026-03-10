@@ -1,41 +1,59 @@
 // ──────────────────────────────────────────────────────────────────────────────
 // Email Service — Sends professional company brochure emails to leads
-// Uses import nodemailer from 'nodemailer';
+// Supports two providers:
+//   1. SendGrid API (production — set SENDGRID_API_KEY + EMAIL_FROM)
+//   2. Nodemailer / Gmail SMTP (local dev — set EMAIL_USER + EMAIL_PASS)
+// ──────────────────────────────────────────────────────────────────────────────
+
+import sgMail from '@sendgrid/mail';
 import nodemailer from 'nodemailer';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('EmailService');
 
+type Provider = 'sendgrid' | 'nodemailer' | 'none';
+
 class EmailService {
-  private isConfigured = false;
+  private provider: Provider = 'none';
   private transporter: nodemailer.Transporter | null = null;
   private get fromName(): string { return process.env['EMAIL_FROM_NAME'] || 'Aria | Your AI Assistant'; }
-  // MUST be the exact email address you verified as a Sender in SendGrid
-  private get fromEmail(): string { return process.env['EMAIL_USER'] || ''; }
 
   constructor() {
     this.configureClient();
   }
 
   private configureClient() {
+    // Priority 1: SendGrid (works on Railway, no port blocks)
+    const sgKey = process.env['SENDGRID_API_KEY'];
+    const sgFrom = process.env['EMAIL_FROM'];
+    if (sgKey && sgFrom) {
+      sgMail.setApiKey(sgKey);
+      this.provider = 'sendgrid';
+      log.info(`Email Service initialized → SendGrid (from: ${sgFrom})`);
+      return;
+    }
+
+    // Priority 2: Nodemailer with Gmail SMTP (local dev)
     const user = process.env['EMAIL_USER'];
     const pass = process.env['EMAIL_PASS'];
-    
     if (user && pass) {
       this.transporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
         port: 465,
-        secure: true, // use SSL
-        auth: {
-          user: user,
-          pass: pass,
-        },
+        secure: true,
+        auth: { user, pass },
       });
-      this.isConfigured = true;
-      log.info(`Nodemailer (Gmail SMTP) Email Service initialized`);
-    } else {
-      log.warn('Email Service disabled — EMAIL_USER or EMAIL_PASS not set in .env');
+      this.provider = 'nodemailer';
+      log.info(`Email Service initialized → Nodemailer/Gmail (from: ${user})`);
+      return;
     }
+
+    log.warn('Email Service disabled — no email credentials found in .env');
+  }
+
+  private get senderEmail(): string {
+    if (this.provider === 'sendgrid') return process.env['EMAIL_FROM'] || '';
+    return process.env['EMAIL_USER'] || '';
   }
 
   /**
@@ -52,27 +70,37 @@ class EmailService {
    */
   async sendCompanyBrochure(toEmail: string, leadName: string): Promise<boolean> {
     // Attempt lazy config if env vars were loaded late
-    if (!this.isConfigured) this.configureClient();
+    if (this.provider === 'none') this.configureClient();
 
-    if (!this.isConfigured || !this.transporter) {
-      log.warn(`Cannot send email — EMAIL_USER/EMAIL_PASS not configured`);
+    if (this.provider === 'none') {
+      log.warn('Cannot send email — no email provider configured');
       return false;
     }
 
     const htmlContent = this.buildBrochureHTML(leadName);
+    const subject = `Your Information Package from ${this.fromName} 📦`;
 
     try {
-      await this.transporter.sendMail({
-        from: `"${this.fromName}" <${this.fromEmail}>`,
-        to: toEmail,
-        subject: `Your Information Package from ${this.fromName} 📦`,
-        html: htmlContent,
-      });
+      if (this.provider === 'sendgrid') {
+        await sgMail.send({
+          to: toEmail,
+          from: { email: this.senderEmail, name: this.fromName },
+          subject,
+          html: htmlContent,
+        });
+      } else if (this.transporter) {
+        await this.transporter.sendMail({
+          from: `"${this.fromName}" <${this.senderEmail}>`,
+          to: toEmail,
+          subject,
+          html: htmlContent,
+        });
+      }
 
-      log.info(`✉️  Brochure email sent to ${toEmail} via Nodemailer (Gmail SMTP)`);
+      log.info(`✉️  Brochure email sent to ${toEmail} via ${this.provider}`);
       return true;
     } catch (error: any) {
-      log.error(`❌ Failed to send email to ${toEmail}:`, error);
+      log.error(`❌ Failed to send email to ${toEmail} via ${this.provider}:`, error.response?.body || error.message || error);
       return false;
     }
   }
