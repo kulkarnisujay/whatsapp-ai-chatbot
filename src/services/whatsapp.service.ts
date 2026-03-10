@@ -206,6 +206,8 @@ class WhatsAppService {
     }
 
     // ─── Email Detection & Brochure Sending ──────────────────────────
+    // IMPORTANT: This runs BEFORE the AI so the LLM never sees email messages
+    // and never hallucinate "I sent it" or "bounce back" responses.
     const detectedEmail = emailService.extractEmail(textBody);
     if (detectedEmail) {
       log.info(`📧 Email detected from ${senderInfo.profileName}: ${detectedEmail}`);
@@ -219,19 +221,29 @@ class WhatsAppService {
       notificationService.notifyEmailCaptured(senderInfo.profileName, detectedEmail, senderInfo.phoneNumber);
 
       // Send company brochure email
-      const emailSent = await emailService.sendCompanyBrochure(detectedEmail, senderInfo.profileName);
-
-      if (emailSent) {
+      try {
+        const emailSent = await emailService.sendCompanyBrochure(detectedEmail, senderInfo.profileName);
+        if (emailSent) {
+          await this.sendTextMessage(
+            senderInfo.phoneNumber,
+            `✉️ I've just sent a detailed overview of our services and packages to *${detectedEmail}*! Please check your inbox (and spam folder, just in case). 😊\n\nIs there anything specific you'd like to discuss?`
+          );
+        } else {
+          log.error(`❌ Email service returned false for ${detectedEmail} — check EMAIL_USER/EMAIL_PASS env vars`);
+          await this.sendTextMessage(
+            senderInfo.phoneNumber,
+            `📧 Thanks for sharing your email (*${detectedEmail}*)! I've saved it and our team will send you the details shortly. 🙌`
+          );
+        }
+      } catch (emailError) {
+        log.error(`❌ Email sending crashed:`, emailError);
         await this.sendTextMessage(
           senderInfo.phoneNumber,
-          `✉️ I've just sent a detailed overview of our services and packages to *${detectedEmail}*! Please check your inbox (and spam folder, just in case). 😊\n\nIs there anything specific you'd like to discuss?`
+          `📧 Got your email (*${detectedEmail}*)! Our team will follow up with details soon. 🙌`
         );
-        // If the message was super short (just their email and maybe a word or two), 
-        // skip sending it to the AI so the AI doesn't hallucinate a response.
-        if (textBody.length < detectedEmail.length + 15) {
-           return;
-        }
       }
+      // ALWAYS return here — never let email messages reach the AI
+      return;
     }
 
     // ─── Generate AI-powered response ────────────────────────────────
