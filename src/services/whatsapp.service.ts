@@ -793,7 +793,8 @@ class WhatsAppService {
    * Sends booking/call information with action buttons.
    */
   async sendBookingInfo(to: string, profileName: string): Promise<boolean> {
-    const calendlyUrl = process.env['CALENDLY_URL'] || '';
+    let calendlyUrl = process.env['CALENDLY_URL'] || '';
+    if (calendlyUrl.includes('/app/')) calendlyUrl = '';
 
     if (calendlyUrl) {
       // Send text with the actual booking link
