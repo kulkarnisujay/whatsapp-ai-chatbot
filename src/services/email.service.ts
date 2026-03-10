@@ -18,7 +18,9 @@ class EmailService {
 
     if (this.fromEmail && process.env['EMAIL_PASS']) {
       this.transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
         auth: {
           user: this.fromEmail,
           pass: process.env['EMAIL_PASS'],
