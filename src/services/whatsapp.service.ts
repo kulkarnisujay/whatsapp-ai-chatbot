@@ -234,11 +234,19 @@ class WhatsAppService {
               `✅ The email has been sent successfully!\nPlease check your inbox (and spam folder, just in case). 😊\n\nIs there anything specific you'd like to discuss?`
             );
           } else {
-            log.error(`❌ Email service returned false for ${detectedEmail} — check SENDGRID_API_KEY env var`);
+            log.error(`❌ Email service returned false for ${detectedEmail}`);
+            await this.sendTextMessage(
+              senderInfo.phoneNumber,
+              `⚠️ I wasn't able to send the email right now due to a temporary issue. Our team has been notified and will send it to you manually shortly. Sorry about that!`
+            );
           }
         })
-        .catch((emailError) => {
+        .catch(async (emailError) => {
           log.error(`❌ Email sending crashed for ${detectedEmail}:`, emailError);
+          await this.sendTextMessage(
+            senderInfo.phoneNumber,
+            `⚠️ I wasn't able to send the email right now due to a temporary issue. Our team has been notified and will send it to you manually shortly. Sorry about that!`
+          );
         });
 
       // ALWAYS return here — never let email messages reach the AI

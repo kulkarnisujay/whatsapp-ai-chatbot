@@ -14,45 +14,20 @@ const log = createLogger('EmailService');
 type Provider = 'sendgrid' | 'nodemailer' | 'none';
 
 class EmailService {
-  private provider: Provider = 'none';
-  private transporter: nodemailer.Transporter | null = null;
   private get fromName(): string { return process.env['EMAIL_FROM_NAME'] || 'Aria | Your AI Assistant'; }
 
-  constructor() {
-    this.configureClient();
-  }
-
-  private configureClient() {
-    // Priority 1: SendGrid (works on Railway, no port blocks)
-    const sgKey = process.env['SENDGRID_API_KEY'];
-    const sgFrom = process.env['EMAIL_FROM'];
-    if (sgKey && sgFrom) {
-      sgMail.setApiKey(sgKey);
-      this.provider = 'sendgrid';
-      log.info(`Email Service initialized → SendGrid (from: ${sgFrom})`);
-      return;
-    }
-
-    // Priority 2: Nodemailer with Gmail SMTP (local dev)
-    const user = process.env['EMAIL_USER'];
-    const pass = process.env['EMAIL_PASS'];
-    if (user && pass) {
-      this.transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: { user, pass },
-      });
-      this.provider = 'nodemailer';
-      log.info(`Email Service initialized → Nodemailer/Gmail (from: ${user})`);
-      return;
-    }
-
-    log.warn('Email Service disabled — no email credentials found in .env');
+  /**
+   * Determines the active provider by checking env vars FRESH every time.
+   * This avoids stale config issues on Railway where env vars load late.
+   */
+  private getProvider(): Provider {
+    if (process.env['SENDGRID_API_KEY'] && process.env['EMAIL_FROM']) return 'sendgrid';
+    if (process.env['EMAIL_USER'] && process.env['EMAIL_PASS']) return 'nodemailer';
+    return 'none';
   }
 
   private get senderEmail(): string {
-    if (this.provider === 'sendgrid') return process.env['EMAIL_FROM'] || '';
+    if (this.getProvider() === 'sendgrid') return process.env['EMAIL_FROM'] || '';
     return process.env['EMAIL_USER'] || '';
   }
 
@@ -67,42 +42,70 @@ class EmailService {
 
   /**
    * Sends the company brochure/services email to a lead.
+   * Includes automatic retry (up to 3 attempts) for reliability.
    */
   async sendCompanyBrochure(toEmail: string, leadName: string): Promise<boolean> {
-    // Attempt lazy config if env vars were loaded late
-    if (this.provider === 'none') this.configureClient();
-
-    if (this.provider === 'none') {
-      log.warn('Cannot send email — no email provider configured');
+    const provider = this.getProvider();
+    
+    if (provider === 'none') {
+      log.warn('Cannot send email — no email provider configured. Need SENDGRID_API_KEY+EMAIL_FROM or EMAIL_USER+EMAIL_PASS');
       return false;
     }
+
+    log.info(`📧 Preparing to send brochure to ${toEmail} via ${provider}`);
 
     const htmlContent = this.buildBrochureHTML(leadName);
     const subject = `Your Information Package from ${this.fromName} 📦`;
+    const maxRetries = 3;
 
-    try {
-      if (this.provider === 'sendgrid') {
-        await sgMail.send({
-          to: toEmail,
-          from: { email: this.senderEmail, name: this.fromName },
-          subject,
-          html: htmlContent,
-        });
-      } else if (this.transporter) {
-        await this.transporter.sendMail({
-          from: `"${this.fromName}" <${this.senderEmail}>`,
-          to: toEmail,
-          subject,
-          html: htmlContent,
-        });
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        log.info(`📧 Attempt ${attempt}/${maxRetries} — sending to ${toEmail} via ${provider}...`);
+
+        if (provider === 'sendgrid') {
+          sgMail.setApiKey(process.env['SENDGRID_API_KEY']!);
+          await sgMail.send({
+            to: toEmail,
+            from: { email: this.senderEmail, name: this.fromName },
+            subject,
+            html: htmlContent,
+          });
+        } else {
+          // Create a fresh transporter every time to avoid stale connections
+          const transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: {
+              user: process.env['EMAIL_USER']!,
+              pass: process.env['EMAIL_PASS']!,
+            },
+          });
+          await transporter.sendMail({
+            from: `"${this.fromName}" <${this.senderEmail}>`,
+            to: toEmail,
+            subject,
+            html: htmlContent,
+          });
+        }
+
+        log.info(`✅ Brochure email SENT to ${toEmail} via ${provider} (attempt ${attempt})`);
+        return true;
+
+      } catch (error: any) {
+        const errMsg = error.response?.body?.errors?.[0]?.message || error.response?.body || error.message || error;
+        log.error(`❌ Attempt ${attempt}/${maxRetries} FAILED for ${toEmail} via ${provider}: ${JSON.stringify(errMsg)}`);
+
+        if (attempt < maxRetries) {
+          const waitMs = attempt * 2000; // 2s, 4s backoff
+          log.info(`⏳ Retrying in ${waitMs / 1000} seconds...`);
+          await new Promise(resolve => setTimeout(resolve, waitMs));
+        }
       }
-
-      log.info(`✉️  Brochure email sent to ${toEmail} via ${this.provider}`);
-      return true;
-    } catch (error: any) {
-      log.error(`❌ Failed to send email to ${toEmail} via ${this.provider}:`, error.response?.body || error.message || error);
-      return false;
     }
+
+    log.error(`🚫 All ${maxRetries} attempts FAILED to send email to ${toEmail}. Giving up.`);
+    return false;
   }
 
   /**
