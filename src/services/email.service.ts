@@ -1,35 +1,32 @@
 // ──────────────────────────────────────────────────────────────────────────────
 // Email Service — Sends professional company brochure emails to leads
-// Uses Resend API to bypass Railway's outbound SMTP blocks
+// Uses SendGrid API to bypass Railway's outbound SMTP blocks and Resend's Sandbox
 // ──────────────────────────────────────────────────────────────────────────────
 
-import { Resend } from 'resend';
+import sgMail from '@sendgrid/mail';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('EmailService');
 
 class EmailService {
-  private resend: Resend | null = null;
+  private isConfigured = false;
   private get fromName(): string { return process.env['EMAIL_FROM_NAME'] || 'Aria | Your AI Assistant'; }
-  // Note: On Resend's free tier without a custom domain, you MUST send from onboarding@resend.dev
-  private get fromEmail(): string { return process.env['EMAIL_FROM'] || 'onboarding@resend.dev'; }
-
-  private getClient(): Resend | null {
-    if (this.resend) return this.resend;
-
-    const apiKey = process.env['RESEND_API_KEY'];
-    if (apiKey) {
-      this.resend = new Resend(apiKey);
-      log.info(`Resend Email Service initialized`);
-    } else {
-      log.warn('Email Service disabled — RESEND_API_KEY not set in .env');
-    }
-    
-    return this.resend;
-  }
+  // MUST be the exact email address you verified as a Sender in SendGrid
+  private get fromEmail(): string { return process.env['EMAIL_FROM'] || ''; }
 
   constructor() {
-    // Lazily load credentials
+    this.configureClient();
+  }
+
+  private configureClient() {
+    const apiKey = process.env['SENDGRID_API_KEY'];
+    if (apiKey && this.fromEmail) {
+      sgMail.setApiKey(apiKey);
+      this.isConfigured = true;
+      log.info(`SendGrid Email Service initialized`);
+    } else {
+      log.warn('Email Service disabled — SENDGRID_API_KEY or EMAIL_FROM not set in .env');
+    }
   }
 
   /**
@@ -45,36 +42,33 @@ class EmailService {
    * Sends the company brochure/services email to a lead.
    */
   async sendCompanyBrochure(toEmail: string, leadName: string): Promise<boolean> {
-    const resendClient = this.getClient();
-    
-    if (!resendClient) {
-      log.warn(`Cannot send email — RESEND_API_KEY not configured`);
+    // Attempt lazy config if env vars were loaded late
+    if (!this.isConfigured) this.configureClient();
+
+    if (!this.isConfigured) {
+      log.warn(`Cannot send email — SENDGRID_API_KEY not configured`);
       return false;
     }
 
     const htmlContent = this.buildBrochureHTML(leadName);
 
     try {
-      const { data, error } = await resendClient.emails.send({
-        from: `${this.fromName} <${this.fromEmail}>`,
+      const msg = {
         to: toEmail,
+        from: {
+          email: this.fromEmail,
+          name: this.fromName,
+        },
         subject: `Hey ${leadName}! Here's everything about our services 🚀`,
         html: htmlContent,
-      });
+      };
 
-      if (error) {
-        if (error.name === 'validation_error' && this.fromEmail.includes('resend.dev')) {
-          log.error(`❌ RESEND SANDBOX RESTRICTION: You are using onboarding@resend.dev. Resend's free tier ONLY allows sending emails to the exact email address you used to sign up for Resend. You tried to send to ${toEmail}. To send to anyone, you must verify a custom domain on Resend.`);
-        } else {
-          log.error(`Failed to send email via Resend API:`, error);
-        }
-        return false;
-      }
+      const [response] = await sgMail.send(msg);
 
-      log.info(`✉️  Brochure email sent to ${toEmail} (lead: ${leadName}) via Resend | ID: ${data?.id}`);
+      log.info(`✉️  Brochure email sent to ${toEmail} via SendGrid | Status: ${response?.statusCode}`);
       return true;
-    } catch (error) {
-      log.error(`Failed to send email to ${toEmail}:`, error);
+    } catch (error: any) {
+      log.error(`❌ Failed to send email via SendGrid API:`, error.response?.body || error.message);
       return false;
     }
   }

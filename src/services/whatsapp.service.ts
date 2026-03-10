@@ -234,7 +234,7 @@ class WhatsAppService {
               `✅ The email has been sent successfully!\nPlease check your inbox (and spam folder, just in case). 😊\n\nIs there anything specific you'd like to discuss?`
             );
           } else {
-            log.error(`❌ Email service returned false for ${detectedEmail} — check RESEND_API_KEY env var`);
+            log.error(`❌ Email service returned false for ${detectedEmail} — check SENDGRID_API_KEY env var`);
           }
         })
         .catch((emailError) => {
