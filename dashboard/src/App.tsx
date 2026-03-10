@@ -794,9 +794,8 @@ function AudienceView({ leads, formatFullDate, updateLeadStatus, updateLeadNotes
 /* ─── Meetings View ─────────────────────────────────────────────────── */
 
 function MeetingsView() {
-  // A place for the user to paste their Calendly or booking link
-  const [calendlyUrl, setCalendlyUrl] = useState(() => localStorage.getItem('calendly_url') || 'https://calendly.com/app/scheduled_events/user/all');
-  const [isEditing, setIsEditing] = useState(false);
+  const [calendlyUrl, setCalendlyUrl] = useState(() => localStorage.getItem('calendly_url') || '');
+  const [isEditing, setIsEditing] = useState(!calendlyUrl);
   const [tempUrl, setTempUrl] = useState(calendlyUrl);
 
   const saveUrl = () => {
@@ -811,10 +810,10 @@ function MeetingsView() {
       <div className="glass" style={{ padding: '1.25rem 1.5rem', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h3 style={{ margin: '0 0 0.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Calendar size={20} style={{ color: 'var(--primary)' }} /> Calendly Integration
+            <Calendar size={20} style={{ color: 'var(--primary)' }} /> Appointments
           </h3>
           <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            View your schedule right in the dashboard.
+            Preview your public booking page and manage calls.
           </p>
         </div>
         
@@ -825,7 +824,7 @@ function MeetingsView() {
                 type="text" 
                 value={tempUrl} 
                 onChange={(e) => setTempUrl(e.target.value)} 
-                placeholder="https://calendly.com/your-name"
+                placeholder="e.g. https://calendly.com/your-name"
                 style={{
                   background: 'var(--bg-dark)', border: '1px solid var(--border)', borderRadius: '6px',
                   color: 'var(--text-main)', padding: '6px 10px', fontSize: '0.85rem', width: '250px'
@@ -833,10 +832,7 @@ function MeetingsView() {
               />
               <button onClick={saveUrl} style={{
                 background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600
-              }}>Save</button>
-              <button onClick={() => { setIsEditing(false); setTempUrl(calendlyUrl); }} style={{
-                background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.8rem'
-              }}>Cancel</button>
+              }}>Save URL</button>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -844,13 +840,13 @@ function MeetingsView() {
                 background: 'linear-gradient(135deg, #3b82f6, #2563eb)', border: 'none', borderRadius: '8px',
                 color: '#fff', padding: '8px 16px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px'
               }}>
-                Manage Upcoming Calls ↗
+                Manage Scheduled Calls ↗
               </button>
               <button onClick={() => setIsEditing(true)} style={{
                 background: 'var(--bg-dark)', border: '1px solid var(--border)', borderRadius: '8px',
                 color: 'var(--text-muted)', padding: '8px 16px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
               }}>
-                Edit URL
+                Edit Public URL
               </button>
             </div>
           )}
@@ -858,23 +854,33 @@ function MeetingsView() {
       </div>
 
       {/* Calendly iFrame */}
-      <div className="glass" style={{ flex: 1, borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)' }}>
-        {calendlyUrl.includes('calendly.com') ? (
+      <div className="glass" style={{ flex: 1, borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+        {calendlyUrl && calendlyUrl.includes('calendly.com') && !calendlyUrl.includes('/app/') ? (
           <iframe 
             src={calendlyUrl} 
             width="100%" 
             height="100%" 
             frameBorder="0" 
             title="Calendly Booking Page"
-            style={{ display: 'block' }}
+            style={{ display: 'block', flex: 1 }}
           ></iframe>
         ) : (
-          <div className="chat-empty" style={{ height: '100%' }}>
-            <Calendar size={48} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
-            <h3>Configure Your Scheduling Link</h3>
-            <p style={{ maxWidth: '400px', fontSize: '0.9rem' }}>
-              Click "Edit URL" above and paste your Calendly URL to view your scheduling page right here.
-            </p>
+          <div className="chat-empty" style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: 'var(--bg-dark)', padding: '2rem', borderRadius: '12px', textAlign: 'center', border: '1px solid var(--border)' }}>
+              <Calendar size={48} style={{ color: 'var(--text-muted)', marginBottom: '1rem', display: 'block', margin: '0 auto 1rem' }} />
+              <h3 style={{ marginBottom: '0.5rem' }}>Security Restriction</h3>
+              <p style={{ maxWidth: '400px', fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                Calendly blocks third-party websites from embedding your private dashboard. 
+                <br/><br/>
+                We cannot automatically sign you in inside this panel. To view your scheduled meetings, click <b>Manage Scheduled Calls ↗</b> above which will securely open Calendly.
+              </p>
+              <button onClick={() => setIsEditing(true)} style={{
+                background: 'transparent', border: '1px solid var(--primary)', borderRadius: '8px',
+                color: 'var(--primary)', padding: '8px 16px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
+              }}>
+                Or Paste Public Booking URL Here
+              </button>
+            </div>
           </div>
         )}
       </div>
