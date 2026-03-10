@@ -1,31 +1,40 @@
 // ──────────────────────────────────────────────────────────────────────────────
 // Email Service — Sends professional company brochure emails to leads
-// Uses SendGrid API to bypass Railway's outbound SMTP blocks and Resend's Sandbox
-// ──────────────────────────────────────────────────────────────────────────────
-
-import sgMail from '@sendgrid/mail';
+// Uses import nodemailer from 'nodemailer';
+import nodemailer from 'nodemailer';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('EmailService');
 
 class EmailService {
   private isConfigured = false;
+  private transporter: nodemailer.Transporter | null = null;
   private get fromName(): string { return process.env['EMAIL_FROM_NAME'] || 'Aria | Your AI Assistant'; }
   // MUST be the exact email address you verified as a Sender in SendGrid
-  private get fromEmail(): string { return process.env['EMAIL_FROM'] || ''; }
+  private get fromEmail(): string { return process.env['EMAIL_USER'] || ''; }
 
   constructor() {
     this.configureClient();
   }
 
   private configureClient() {
-    const apiKey = process.env['SENDGRID_API_KEY'];
-    if (apiKey && this.fromEmail) {
-      sgMail.setApiKey(apiKey);
+    const user = process.env['EMAIL_USER'];
+    const pass = process.env['EMAIL_PASS'];
+    
+    if (user && pass) {
+      this.transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, // use SSL
+        auth: {
+          user: user,
+          pass: pass,
+        },
+      });
       this.isConfigured = true;
-      log.info(`SendGrid Email Service initialized`);
+      log.info(`Nodemailer (Gmail SMTP) Email Service initialized`);
     } else {
-      log.warn('Email Service disabled — SENDGRID_API_KEY or EMAIL_FROM not set in .env');
+      log.warn('Email Service disabled — EMAIL_USER or EMAIL_PASS not set in .env');
     }
   }
 
@@ -45,30 +54,25 @@ class EmailService {
     // Attempt lazy config if env vars were loaded late
     if (!this.isConfigured) this.configureClient();
 
-    if (!this.isConfigured) {
-      log.warn(`Cannot send email — SENDGRID_API_KEY not configured`);
+    if (!this.isConfigured || !this.transporter) {
+      log.warn(`Cannot send email — EMAIL_USER/EMAIL_PASS not configured`);
       return false;
     }
 
     const htmlContent = this.buildBrochureHTML(leadName);
 
     try {
-      const msg = {
+      await this.transporter.sendMail({
+        from: `"${this.fromName}" <${this.fromEmail}>`,
         to: toEmail,
-        from: {
-          email: this.fromEmail,
-          name: this.fromName,
-        },
-        subject: `Hey ${leadName}! Here's everything about our services 🚀`,
+        subject: `Your Information Package from ${this.fromName} 📦`,
         html: htmlContent,
-      };
+      });
 
-      const [response] = await sgMail.send(msg);
-
-      log.info(`✉️  Brochure email sent to ${toEmail} via SendGrid | Status: ${response?.statusCode}`);
+      log.info(`✉️  Brochure email sent to ${toEmail} via Nodemailer (Gmail SMTP)`);
       return true;
     } catch (error: any) {
-      log.error(`❌ Failed to send email via SendGrid API:`, error.response?.body || error.message);
+      log.error(`❌ Failed to send email to ${toEmail}:`, error);
       return false;
     }
   }
