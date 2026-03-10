@@ -181,3 +181,31 @@ export function updateLead(req: Request, res: Response): void {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+/**
+ * DELETE /api/leads/id/:id
+ * Hard deletes a lead and their message history from the database.
+ */
+export function deleteLeadById(req: Request, res: Response): void {
+  try {
+    const idParam = req.params['id'];
+    const id = Number(idParam);
+    
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Bad Request', message: 'Lead ID must be a number.' });
+      return;
+    }
+
+    const success = leadService.deleteLead(id);
+    
+    if (!success) {
+      res.status(404).json({ error: 'Not Found', message: `No lead found with ID: ${id} to delete.` });
+      return;
+    }
+
+    res.status(200).json({ success: true, message: 'Lead deleted successfully.' });
+  } catch (error) {
+    log.error('Failed to delete lead by ID:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+}

@@ -3,7 +3,7 @@ import {
   Bot, MessageSquare, Users, Activity, Phone, Search,
   Send, Settings, Bell, ChevronRight, Calendar,
   Mail, Tag, RefreshCw, Zap, Clock, CheckCircle, Database, Server, TrendingUp, BarChart3, Flame,
-  Download, Edit3, Save, UserCheck, Star, Shield, Key, Globe,
+  Download, Edit3, Save, UserCheck, Star, Shield, Key, Globe, Trash2, Lock
 } from 'lucide-react';
 import type { Lead, LeadStats, Message } from './types';
 
@@ -19,22 +19,42 @@ function App() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const [authKey, setAuthKey] = useState(localStorage.getItem('aria_admin_key') || '');
+  const [loginInput, setLoginInput] = useState('');
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem('aria_admin_key', loginInput);
+    setAuthKey(loginInput);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('aria_admin_key');
+    setAuthKey('');
+  };
+
+  const getHeaders = () => ({
+    'Content-Type': 'application/json',
+    'x-admin-key': authKey
+  });
+
   useEffect(() => {
+    if (!authKey) return;
     fetchStats();
     fetchLeads();
     const interval = setInterval(() => { fetchStats(); fetchLeads(); }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [authKey]);
 
   useEffect(() => {
-    if (selectedLead) {
+    if (selectedLead && authKey) {
       fetchMessages(selectedLead.id);
       const interval = setInterval(() => fetchMessages(selectedLead.id), 3000);
       return () => clearInterval(interval);
     } else {
       setMessages([]);
     }
-  }, [selectedLead]);
+  }, [selectedLead, authKey]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -42,21 +62,24 @@ function App() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/leads/stats');
+      const res = await fetch('/api/leads/stats', { headers: getHeaders() });
+      if (res.status === 401) handleLogout();
       if (res.ok) { const data = await res.json(); setStats(data.data); }
     } catch (err) { console.error('Failed to fetch stats', err); }
   };
 
   const fetchLeads = async () => {
     try {
-      const res = await fetch('/api/leads');
+      const res = await fetch('/api/leads', { headers: getHeaders() });
+      if (res.status === 401) handleLogout();
       if (res.ok) { const data = await res.json(); setLeads(data.data || []); }
     } catch (err) { console.error('Failed to fetch leads', err); }
   };
 
   const fetchMessages = async (leadId: string) => {
     try {
-      const res = await fetch(`/api/leads/id/${leadId}`);
+      const res = await fetch(`/api/leads/id/${leadId}`, { headers: getHeaders() });
+      if (res.status === 401) handleLogout();
       if (res.ok) {
         const data = await res.json();
         if (data.data && data.data.messages) {
@@ -70,9 +93,10 @@ function App() {
     try {
       const res = await fetch(`/api/leads/id/${leadId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({ status: newStatus }),
       });
+      if (res.status === 401) handleLogout();
       if (res.ok) {
         fetchLeads();
         if (selectedLead && selectedLead.id === leadId) {
@@ -84,13 +108,31 @@ function App() {
 
   const updateLeadNotes = async (leadId: string, notes: string) => {
     try {
-      await fetch(`/api/leads/id/${leadId}`, {
+      const res = await fetch(`/api/leads/id/${leadId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({ notes }),
       });
+      if (res.status === 401) handleLogout();
       fetchLeads();
     } catch (err) { console.error('Failed to update notes', err); }
+  };
+
+  const deleteLead = async (leadId: string) => {
+    if (!window.confirm('Are you sure you want to completely delete this lead and their message history? This cannot be undone.')) return;
+    try {
+      const res = await fetch(`/api/leads/id/${leadId}`, { 
+        method: 'DELETE',
+        headers: getHeaders() 
+      });
+      if (res.status === 401) handleLogout();
+      if (res.ok) {
+        fetchLeads();
+        if (selectedLead?.id === leadId) setSelectedLead(null);
+      } else {
+        alert('Failed to delete lead.');
+      }
+    } catch (err) { console.error('Failed to delete lead', err); }
   };
 
   const formatDate = (dateStr: string | null | undefined) => {
@@ -133,6 +175,35 @@ function App() {
     meetings: '📅 Meetings',
     settings: '⚙️ Settings',
   };
+
+  if (!authKey) {
+    return (
+      <div className="app-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#0f172a' }}>
+        <div style={{ background: '#1e293b', padding: '3rem', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', width: '100%', maxWidth: '400px', textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ background: 'linear-gradient(135deg, #10b981, #059669)', width: '64px', height: '64px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Lock size={32} color="white" />
+            </div>
+          </div>
+          <h2 style={{ color: 'white', marginBottom: '0.5rem', fontFamily: 'Outfit, sans-serif' }}>Admin Login</h2>
+          <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '2rem' }}>Enter the dashboard password to access the Aria CRM.</p>
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <input 
+              type="password" 
+              placeholder="Admin Password" 
+              value={loginInput}
+              onChange={(e) => setLoginInput(e.target.value)}
+              style={{ padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: 'white', fontSize: '1rem', outline: 'none' }}
+              autoFocus
+            />
+            <button type="submit" style={{ padding: '0.75rem 1rem', borderRadius: '8px', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', color: 'white', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>
+              Secure Login
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
@@ -294,7 +365,7 @@ function App() {
         )}
 
         {activeTab === 'audience' && (
-          <AudienceView leads={leads} formatFullDate={formatFullDate} updateLeadStatus={updateLeadStatus} updateLeadNotes={updateLeadNotes} statusColors={statusColors} />
+          <AudienceView leads={leads} formatFullDate={formatFullDate} updateLeadStatus={updateLeadStatus} updateLeadNotes={updateLeadNotes} deleteLead={deleteLead} statusColors={statusColors} />
         )}
 
         {activeTab === 'meetings' && (
@@ -506,11 +577,12 @@ function DashboardView({ stats, leads, formatFullDate, setActiveTab }: {
 
 /* ─── Audience View ─────────────────────────────────────────────────── */
 
-function AudienceView({ leads, formatFullDate, updateLeadStatus, updateLeadNotes, statusColors }: {
+function AudienceView({ leads, formatFullDate, updateLeadStatus, updateLeadNotes, deleteLead, statusColors }: {
   leads: Lead[];
   formatFullDate: (d: string | null | undefined) => string;
   updateLeadStatus: (id: string, status: string) => Promise<void>;
   updateLeadNotes: (id: string, notes: string) => Promise<void>;
+  deleteLead: (id: string) => Promise<void>;
   statusColors: Record<string, string>;
 }) {
   const [filter, setFilter] = useState<string>('all');
@@ -619,7 +691,17 @@ function AudienceView({ leads, formatFullDate, updateLeadStatus, updateLeadNotes
         <div className="glass" style={{ padding: '1.5rem', borderRadius: '12px', flex: 1, minWidth: '280px' }}>
           {selectedLead ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ textAlign: 'center' }}>
+              <div style={{ textAlign: 'center', position: 'relative' }}>
+                <button 
+                  onClick={() => deleteLead(selectedLead.id)}
+                  title="Delete Lead"
+                  style={{
+                    position: 'absolute', top: 0, right: 0, 
+                    background: 'transparent', border: 'none', color: '#ef4444', 
+                    cursor: 'pointer', padding: '4px', borderRadius: '4px'
+                  }}>
+                  <Trash2 size={16} />
+                </button>
                 <div className="lead-avatar" style={{
                   width: '56px', height: '56px', fontSize: '1.3rem', margin: '0 auto 0.5rem',
                   background: `linear-gradient(135deg, ${statusColors[selectedLead.status]}33, ${statusColors[selectedLead.status]}66)`,

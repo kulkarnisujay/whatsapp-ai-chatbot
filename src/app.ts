@@ -35,9 +35,20 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
+// ─── Security Auth Middleware for Dashboard ──────────────────────────────
+const requireAuth = (req: Request, res: Response, next: express.NextFunction) => {
+  const token = req.headers['x-admin-key'];
+  const expectedPassword = process.env.ADMIN_PASSWORD || 'ariadmin'; // fallback
+  if (!token || token !== expectedPassword) {
+    res.status(401).json({ error: 'Unauthorized', message: 'Invalid admin password' });
+    return;
+  }
+  next();
+};
+
 // ─── API Routes ───────────────────────────────────────────────────────
-app.use('/api', webhookRouter);
-app.use('/api', leadsRouter);
+app.use('/api', webhookRouter); // Webhooks must be public for Meta
+app.use('/api', requireAuth, leadsRouter); // Leads API is fully protected
 
 // ─── Static Frontend Serving (Dashboard) ─────────────────────────────
 const dashboardPath = path.join(process.cwd(), 'dashboard/dist');

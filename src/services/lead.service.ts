@@ -375,6 +375,32 @@ class LeadService {
     const result = this.stmtInsertReminder.run(leadId, type, message, status);
     log.debug(`Recorded reminder for lead ${leadId} | ID: ${result.lastInsertRowid}`);
   }
+
+  /**
+   * Hard deletes a lead from the database.
+   * Useful for purging spam or irrelevant contacts via the dashboard.
+   * Note: With foreign keys configured, this will explicitly wipe or orphan their messages,
+   * though we can just cascade delete. Currently, SQLite PRAGMA foreign_keys = ON might handle it 
+   * if ON DELETE CASCADE is set, otherwise messages remain or are deleted manually if needed.
+   *
+   * @param leadId - The lead's database ID
+   * @returns true if deleted, false if not found
+   */
+  deleteLead(leadId: number): boolean {
+    // Delete conversation messages for this lead first (manual cascade if DB lacks it)
+    db.prepare('DELETE FROM conversation_messages WHERE lead_id = ?').run(leadId);
+    
+    // Delete the lead
+    const result = db.prepare('DELETE FROM leads WHERE id = ?').run(leadId);
+    
+    if (result.changes > 0) {
+      log.info(`🗑️ Lead deleted successfully: ID ${leadId}`);
+      return true;
+    }
+    
+    log.warn(`Could not delete lead: ID ${leadId} not found`);
+    return false;
+  }
 }
 
 // Export a singleton instance
