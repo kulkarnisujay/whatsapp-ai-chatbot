@@ -4,7 +4,20 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import axios, { AxiosError } from 'axios';
+import axiosRetry from 'axios-retry';
 import whatsappConfig from '../config/whatsapp.config';
+
+// ─── Global Axios Configuration for Meta API Reliability ──────────────
+// Automatically retries failed API calls (like 5xx errors or network timeouts) 
+// up to 3 times before finally failing, using an exponential backoff strategy.
+axiosRetry(axios, { 
+  retries: 3, 
+  retryDelay: axiosRetry.exponentialDelay,
+  retryCondition: (error) => {
+    // Retry on network errors or 5xx server errors
+    return axiosRetry.isNetworkOrIdempotentRequestError(error) || error.response?.status === 429;
+  }
+});
 import aiService from './ai.service';
 import leadService from './lead.service';
 import emailService from './email.service';

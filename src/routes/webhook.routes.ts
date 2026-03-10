@@ -3,7 +3,19 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { verifyWebhook, handleIncomingWebhook } from '../controllers/webhook.controller';
+
+// ─── Webhook Security: DDoS Protection ─────────────────
+// Allows maximum of 200 webhook events per minute per IP
+// (Meta sends bursts during busy times, but this blocks abuse)
+const webhookRateLimiter = rateLimit({
+  windowMs: 60 * 1000, 
+  max: 200, 
+  standardHeaders: true, 
+  legacyHeaders: false,
+  message: 'Too many webhook requests from this IP, please try again after a minute',
+});
 
 const webhookRouter = Router();
 
@@ -21,6 +33,6 @@ webhookRouter.get('/webhook', verifyWebhook);
  * - Message status updates (sent, delivered, read, failed)
  * - Errors
  */
-webhookRouter.post('/webhook', handleIncomingWebhook);
+webhookRouter.post('/webhook', webhookRateLimiter, handleIncomingWebhook);
 
 export default webhookRouter;
