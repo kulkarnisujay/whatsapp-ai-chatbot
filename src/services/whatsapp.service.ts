@@ -176,6 +176,8 @@ class WhatsAppService {
     if (lead && lead.total_messages === 1) {
       log.info(`👋 First-time user detected. Forcing Welcome Sequence for ${senderInfo.profileName}`);
       await this.sendWelcomeMenu(senderInfo.phoneNumber, senderInfo.profileName);
+      aiService.injectContextMessage(senderInfo.phoneNumber, senderInfo.profileName, 'user', textBody);
+      aiService.injectContextMessage(senderInfo.phoneNumber, senderInfo.profileName, 'assistant', `[System Auto-Reply: sent welcome message with quick-action buttons to the user]`);
       return;
     }
 
@@ -184,6 +186,8 @@ class WhatsAppService {
       log.info(`🔄 Greeting received from ${senderInfo.profileName}. Clearing AI conversation history for a fresh start.`);
       aiService.clearConversation(senderInfo.phoneNumber);
       await this.sendWelcomeMenu(senderInfo.phoneNumber, senderInfo.profileName);
+      aiService.injectContextMessage(senderInfo.phoneNumber, senderInfo.profileName, 'user', textBody);
+      aiService.injectContextMessage(senderInfo.phoneNumber, senderInfo.profileName, 'assistant', `[System Auto-Reply: sent welcome message with quick-action buttons to the user]`);
       return;
     }
 
@@ -192,16 +196,22 @@ class WhatsAppService {
       notificationService.notifyHighIntent(senderInfo.profileName, 'Checked Pricing', senderInfo.phoneNumber);
       leadService.addLeadScore(senderInfo.phoneNumber, 15, 'pricing_inquiry');
       await this.sendPricingList(senderInfo.phoneNumber);
+      aiService.injectContextMessage(senderInfo.phoneNumber, senderInfo.profileName, 'user', textBody);
+      aiService.injectContextMessage(senderInfo.phoneNumber, senderInfo.profileName, 'assistant', `[System Auto-Reply: the user typed a keyword and was automatically shown the pricing list and packages.]`);
       return;
     }
     if (lowerText === 'services' || lowerText === 'what do you do' || lowerText === 'offerings') {
       await this.sendServicesMenu(senderInfo.phoneNumber);
+      aiService.injectContextMessage(senderInfo.phoneNumber, senderInfo.profileName, 'user', textBody);
+      aiService.injectContextMessage(senderInfo.phoneNumber, senderInfo.profileName, 'assistant', `[System Auto-Reply: the user typed a keyword and was automatically shown the services menu.]`);
       return;
     }
     if (lowerText === 'book' || lowerText === 'call' || lowerText === 'schedule' || lowerText === 'demo') {
       notificationService.notifyHighIntent(senderInfo.profileName, 'Requested Call', senderInfo.phoneNumber);
       leadService.addLeadScore(senderInfo.phoneNumber, 20, 'requested_call');
       await this.sendBookingInfo(senderInfo.phoneNumber, senderInfo.profileName);
+      aiService.injectContextMessage(senderInfo.phoneNumber, senderInfo.profileName, 'user', textBody);
+      aiService.injectContextMessage(senderInfo.phoneNumber, senderInfo.profileName, 'assistant', `[System Auto-Reply: the user typed a keyword and was automatically sent the booking/Calendly link.]`);
       return;
     }
 
@@ -223,6 +233,15 @@ class WhatsAppService {
       await this.sendTextMessage(
         senderInfo.phoneNumber,
         `📧 Thanks for sharing your email (*${detectedEmail}*)!\n\nI'm sending over our detailed services and packages right now. 🚀`
+      );
+
+      // Tell the AI what just happened so it has context and doesnt hallucinate
+      aiService.injectContextMessage(senderInfo.phoneNumber, senderInfo.profileName, 'user', textBody);
+      aiService.injectContextMessage(
+        senderInfo.phoneNumber, 
+        senderInfo.profileName, 
+        'assistant', 
+        `[System Auto-Reply: The user provided their email (${detectedEmail}) and the system automatically sent them the company brochure via email. Acknowledge this if they ask.]`
       );
 
       // Send company brochure email asynchronously in the background
@@ -336,6 +355,20 @@ class WhatsAppService {
     const selectionTitle = interactive?.button_reply?.title || interactive?.list_reply?.title || 'your selection';
 
     log.info(`🔘 Interactive from ${senderInfo.profileName}: ${selectionId} ("${selectionTitle}")`);
+
+    // Inject this action into the AI context so the LLM remembers what button the user tapped
+    aiService.injectContextMessage(
+      senderInfo.phoneNumber,
+      senderInfo.profileName,
+      'user',
+      `[Quick Action Button Selected: ${selectionTitle}]`
+    );
+    aiService.injectContextMessage(
+      senderInfo.phoneNumber,
+      senderInfo.profileName,
+      'assistant',
+      `[System Auto-Reply: sent details for ${selectionTitle}]`
+    );
 
     if (buttonId) {
       leadService.addLeadScore(senderInfo.phoneNumber, 5, 'button_click');

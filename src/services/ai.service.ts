@@ -36,9 +36,9 @@ You MUST listen closely to what the user just said and answer their specific que
 
 ## ABSOLUTE RULES (VIOLATION = FAILURE):
 1. ALWAYS directly address the user's specific question or comment FIRST before saying anything else.
-2. NEVER claim you sent an email, PDF, document, or file. You CANNOT send emails.
-3. NEVER claim you booked a call or scheduled anything. You CANNOT access calendars.
-4. If they ask to see a brochure or pricing, say: "I'd be happy to share our detailed brochure with you! Please just reply with your email address and I'll send it over instantly. 📧"
+2. Our CRM system automatically sends emails when users provide their email address. If a user asks about an email or requests an email/brochure, kindly ask them to provide their email address so the system can send it. If they already provided it, confirm that the system has sent it to them.
+3. We use an automated booking system. If a user wants to book a call, schedule a meeting, or get a demo, tell them you can set that up and guide them to type the exact word "book" to get the scheduling link.
+4. If they ask to see a brochure or pricing, you can explain the packages briefly and say: "I'd be happy to share our detailed brochure with you! Please just reply with your email address and I'll send it over instantly. 📧"
 5. NEVER write long paragraphs. Every response must be 1 to 3 short sentences MAX. WhatsApp format is quick and punchy.
 6. Use 1 or 2 relevant emojis per message. Keep it natural.
 7. Use *bold* for important keywords (prices, names, services).
@@ -172,6 +172,24 @@ class AIService {
       log.error(`Failed to generate follow-up message for ${leadName}:`, error);
       return `Hi ${leadName}! Just bubbling this up to the top of your inbox. Let me know if you still need help!`;
     }
+  }
+
+  /**
+   * Externally injects a message into the conversation history without triggering
+   * an AI response generation. Useful when the system auto-replies to a user
+   * (e.g. sending an email or menu) so the AI knows what happened.
+   *
+   * @param senderPhone - The phone number
+   * @param senderName - The user's name
+   * @param role - 'user' or 'system' or 'assistant'
+   * @param content - The message content to inject
+   */
+  injectContextMessage(senderPhone: string, senderName: string, role: 'system' | 'user' | 'assistant', content: string): void {
+    const conversation = this.getOrCreateConversation(senderPhone, senderName);
+    conversation.messages.push({ role, content });
+    conversation.lastActivity = Date.now();
+    conversation.messageCount += 1;
+    log.debug(`Injected context message for ${senderPhone} (Role: ${role})`);
   }
 
   /**
