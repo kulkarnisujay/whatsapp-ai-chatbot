@@ -19,8 +19,8 @@ class EmailService {
     if (this.fromEmail && process.env['EMAIL_PASS']) {
       const transporterOpts = {
         host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
+        port: 587,
+        secure: false, // true for 465, false for 587 (uses STARTTLS)
         auth: {
           user: this.fromEmail,
           pass: process.env['EMAIL_PASS'],
