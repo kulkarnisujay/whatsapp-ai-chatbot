@@ -3,7 +3,7 @@ import {
   Bot, MessageSquare, Users, Activity, Phone, Search,
   Send, Settings, Bell, ChevronRight, Calendar,
   Mail, Tag, RefreshCw, Zap, Clock, CheckCircle, Database, Server, TrendingUp, BarChart3, Flame,
-  Download, Trash2, Edit3, Save, Filter, UserCheck, UserX, Star, Shield, Key, Globe, Palette,
+  Download, Edit3, Save, UserCheck, Star, Shield, Key, Globe,
 } from 'lucide-react';
 import type { Lead, LeadStats, Message } from './types';
 
@@ -680,9 +680,7 @@ function AudienceView({ leads, formatFullDate, updateLeadStatus, updateLeadNotes
 /* ─── Settings View ─────────────────────────────────────────────────── */
 
 function SettingsView() {
-  const [saved, setSaved] = useState(false);
-
-  const showSaved = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
+  // Removed saved state
 
   const settingsSections = [
     {
@@ -738,14 +736,6 @@ function SettingsView() {
 
   return (
     <div className="dashboard-view animate-fade" style={{ padding: '1.5rem 2rem' }}>
-      {saved && (
-        <div style={{
-          position: 'fixed', top: '1rem', right: '1rem', background: '#10b981', color: '#fff',
-          padding: '12px 24px', borderRadius: '8px', fontWeight: 600, fontSize: '0.85rem',
-          zIndex: 999, boxShadow: '0 4px 20px rgba(16,185,129,0.4)',
-        }}>✅ Settings saved!</div>
-      )}
-
       <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {/* Info Banner */}
         <div className="glass" style={{ padding: '1.25rem 1.5rem', borderRadius: '12px', borderLeft: '4px solid #f59e0b' }}>
