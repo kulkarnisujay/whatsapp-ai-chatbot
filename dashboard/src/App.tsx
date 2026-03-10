@@ -21,11 +21,31 @@ function App() {
 
   const [authKey, setAuthKey] = useState(localStorage.getItem('aria_admin_key') || '');
   const [loginInput, setLoginInput] = useState('');
+  const [loginError, setLoginError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('aria_admin_key', loginInput);
-    setAuthKey(loginInput);
+    setLoginError('');
+    
+    try {
+      // Test the token against any protected endpoint
+      const res = await fetch('/api/leads/stats', {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': loginInput
+        }
+      });
+      
+      if (res.ok) {
+        localStorage.setItem('aria_admin_key', loginInput);
+        setAuthKey(loginInput);
+        setLoginInput('');
+      } else {
+        setLoginError('Invalid password. Please try again.');
+      }
+    } catch (err) {
+      setLoginError('Server connection failed.');
+    }
   };
 
   const handleLogout = () => {
@@ -196,6 +216,7 @@ function App() {
               style={{ padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: 'white', fontSize: '1rem', outline: 'none' }}
               autoFocus
             />
+            {loginError && <p style={{ color: '#ef4444', fontSize: '0.85rem', margin: 0, textAlign: 'left' }}>{loginError}</p>}
             <button type="submit" style={{ padding: '0.75rem 1rem', borderRadius: '8px', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', color: 'white', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>
               Secure Login
             </button>
