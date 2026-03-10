@@ -1,49 +1,35 @@
 // ──────────────────────────────────────────────────────────────────────────────
 // Email Service — Sends professional company brochure emails to leads
-// Uses Nodemailer with Gmail SMTP (free, no external service required)
+// Uses Resend API to bypass Railway's outbound SMTP blocks
 // ──────────────────────────────────────────────────────────────────────────────
 
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('EmailService');
 
 class EmailService {
-  private transporter: nodemailer.Transporter | null = null;
-  private get fromEmail(): string { return process.env['EMAIL_USER'] || ''; }
+  private resend: Resend | null = null;
   private get fromName(): string { return process.env['EMAIL_FROM_NAME'] || 'Aria | Your AI Assistant'; }
+  // Note: On Resend's free tier without a custom domain, you MUST send from onboarding@resend.dev
+  private get fromEmail(): string { return process.env['EMAIL_FROM'] || 'onboarding@resend.dev'; }
 
-  private getTransporter(): nodemailer.Transporter | null {
-    if (this.transporter) return this.transporter;
+  private getClient(): Resend | null {
+    if (this.resend) return this.resend;
 
-    if (this.fromEmail && process.env['EMAIL_PASS']) {
-      const transporterOpts = {
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false, // true for 465, false for 587 (uses STARTTLS)
-        auth: {
-          user: this.fromEmail,
-          pass: process.env['EMAIL_PASS'],
-        },
-        tls: {
-          rejectUnauthorized: true,
-        },
-      };
-      
-      // Node.js socket option 'family: 4' to force IPv4 (bypasses Railway IPv6 issues)
-      (transporterOpts as any).family = 4;
-      
-      this.transporter = nodemailer.createTransport(transporterOpts);
-      log.info(`Email Service initialized (from: ${this.fromEmail})`);
+    const apiKey = process.env['RESEND_API_KEY'];
+    if (apiKey) {
+      this.resend = new Resend(apiKey);
+      log.info(`Resend Email Service initialized`);
     } else {
-      log.warn('Email Service disabled — EMAIL_USER or EMAIL_PASS not set in .env');
+      log.warn('Email Service disabled — RESEND_API_KEY not set in .env');
     }
     
-    return this.transporter;
+    return this.resend;
   }
 
   constructor() {
-    // Lazily load credentials to avoid dotenv import order bugs in server.ts
+    // Lazily load credentials
   }
 
   /**
@@ -59,24 +45,29 @@ class EmailService {
    * Sends the company brochure/services email to a lead.
    */
   async sendCompanyBrochure(toEmail: string, leadName: string): Promise<boolean> {
-    const transporter = this.getTransporter();
+    const resendClient = this.getClient();
     
-    if (!transporter) {
-      log.warn(`Cannot send email — transporter not configured`);
+    if (!resendClient) {
+      log.warn(`Cannot send email — RESEND_API_KEY not configured`);
       return false;
     }
 
     const htmlContent = this.buildBrochureHTML(leadName);
 
     try {
-      await transporter.sendMail({
-        from: `"${this.fromName}" <${this.fromEmail}>`,
+      const { data, error } = await resendClient.emails.send({
+        from: `${this.fromName} <${this.fromEmail}>`,
         to: toEmail,
         subject: `Hey ${leadName}! Here's everything about our services 🚀`,
         html: htmlContent,
       });
 
-      log.info(`✉️  Brochure email sent to ${toEmail} (lead: ${leadName})`);
+      if (error) {
+        log.error(`Failed to send email via Resend API:`, error);
+        return false;
+      }
+
+      log.info(`✉️  Brochure email sent to ${toEmail} (lead: ${leadName}) via Resend | ID: ${data?.id}`);
       return true;
     } catch (error) {
       log.error(`Failed to send email to ${toEmail}:`, error);
