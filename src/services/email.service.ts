@@ -63,7 +63,11 @@ class EmailService {
       });
 
       if (error) {
-        log.error(`Failed to send email via Resend API:`, error);
+        if (error.name === 'validation_error' && this.fromEmail.includes('resend.dev')) {
+          log.error(`❌ RESEND SANDBOX RESTRICTION: You are using onboarding@resend.dev. Resend's free tier ONLY allows sending emails to the exact email address you used to sign up for Resend. You tried to send to ${toEmail}. To send to anyone, you must verify a custom domain on Resend.`);
+        } else {
+          log.error(`Failed to send email via Resend API:`, error);
+        }
         return false;
       }
 
