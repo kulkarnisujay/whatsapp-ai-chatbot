@@ -3,7 +3,7 @@ import {
   Bot, MessageSquare, Users, Activity, Phone, Search,
   Send, Settings, Bell, ChevronRight, Calendar,
   Mail, Tag, RefreshCw, Zap, Clock, CheckCircle, Database, Server, TrendingUp, BarChart3, Flame,
-  Download, Edit3, Save, UserCheck, Star, Shield, Key, Globe, Trash2, Lock
+  Download, Edit3, Save, UserCheck, Star, Shield, Key, Globe, Trash2, Lock, LogOut
 } from 'lucide-react';
 import type { Lead, LeadStats, Message } from './types';
 
@@ -254,8 +254,11 @@ function App() {
           <div className={`nav-item ${activeTab === 'meetings' ? 'active' : ''}`} onClick={() => setActiveTab('meetings')}>
             <Calendar size={20} /> Meetings
           </div>
-          <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} style={{ marginTop: 'auto' }} onClick={() => setActiveTab('settings')}>
+          <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
             <Settings size={20} /> Settings
+          </div>
+          <div className="nav-item" style={{ marginTop: 'auto', color: '#ef4444' }} onClick={handleLogout}>
+            <LogOut size={20} /> Logout
           </div>
         </div>
       </aside>
@@ -792,7 +795,7 @@ function AudienceView({ leads, formatFullDate, updateLeadStatus, updateLeadNotes
 
 function MeetingsView() {
   // A place for the user to paste their Calendly or booking link
-  const [calendlyUrl, setCalendlyUrl] = useState(() => localStorage.getItem('calendly_url') || 'https://calendly.com');
+  const [calendlyUrl, setCalendlyUrl] = useState(() => localStorage.getItem('calendly_url') || 'https://calendly.com/app/scheduled_events/user/all');
   const [isEditing, setIsEditing] = useState(false);
   const [tempUrl, setTempUrl] = useState(calendlyUrl);
 
