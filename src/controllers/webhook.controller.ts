@@ -157,6 +157,14 @@ export function handleIncomingWebhook(req: Request, res: Response): void {
             profileName: contactMap.get(message.from) || 'Unknown',
           };
 
+          // Guard: Prevent the bot from answering its own messages
+          // If the message is sent FROM the bot's own phone number, completely ignore it
+          const botPhoneNumber = value.metadata?.display_phone_number?.replace(/\D/g, '');
+          if (botPhoneNumber && message.from === botPhoneNumber) {
+            console.log(`🛑 Ignoring message sent by the bot itself (${botPhoneNumber})`);
+            continue;
+          }
+
           console.log('');
           console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
           console.log(`📩 New ${message.type} message`);
