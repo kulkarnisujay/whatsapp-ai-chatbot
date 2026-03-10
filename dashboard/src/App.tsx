@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import type { Lead, LeadStats, Message } from './types';
 
-type TabType = 'dashboard' | 'conversations' | 'audience' | 'settings';
+type TabType = 'dashboard' | 'conversations' | 'audience' | 'meetings' | 'settings';
 
 function App() {
   const [stats, setStats] = useState<LeadStats | null>(null);
@@ -130,6 +130,7 @@ function App() {
     dashboard: '📊 Overview',
     conversations: '💬 Live Conversations',
     audience: '👥 Audience Manager',
+    meetings: '📅 Meetings',
     settings: '⚙️ Settings',
   };
 
@@ -157,6 +158,9 @@ function App() {
           </div>
           <div className={`nav-item ${activeTab === 'audience' ? 'active' : ''}`} onClick={() => setActiveTab('audience')}>
             <Users size={20} /> Audience
+          </div>
+          <div className={`nav-item ${activeTab === 'meetings' ? 'active' : ''}`} onClick={() => setActiveTab('meetings')}>
+            <Calendar size={20} /> Meetings
           </div>
           <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} style={{ marginTop: 'auto' }} onClick={() => setActiveTab('settings')}>
             <Settings size={20} /> Settings
@@ -291,6 +295,10 @@ function App() {
 
         {activeTab === 'audience' && (
           <AudienceView leads={leads} formatFullDate={formatFullDate} updateLeadStatus={updateLeadStatus} updateLeadNotes={updateLeadNotes} statusColors={statusColors} />
+        )}
+
+        {activeTab === 'meetings' && (
+          <MeetingsView />
         )}
 
         {activeTab === 'settings' && (
@@ -672,6 +680,97 @@ function AudienceView({ leads, formatFullDate, updateLeadStatus, updateLeadNotes
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Meetings View ─────────────────────────────────────────────────── */
+
+function MeetingsView() {
+  // A place for the user to paste their Calendly or booking link
+  const [calendlyUrl, setCalendlyUrl] = useState(() => localStorage.getItem('calendly_url') || 'https://calendly.com');
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempUrl, setTempUrl] = useState(calendlyUrl);
+
+  const saveUrl = () => {
+    localStorage.setItem('calendly_url', tempUrl);
+    setCalendlyUrl(tempUrl);
+    setIsEditing(false);
+  };
+
+  return (
+    <div className="dashboard-view animate-fade" style={{ padding: '1.5rem 2rem', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)' }}>
+      {/* Header and Controls */}
+      <div className="glass" style={{ padding: '1.25rem 1.5rem', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ margin: '0 0 0.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Calendar size={20} style={{ color: 'var(--primary)' }} /> Calendly Integration
+          </h3>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            View your schedule right in the dashboard.
+          </p>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {isEditing ? (
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input 
+                type="text" 
+                value={tempUrl} 
+                onChange={(e) => setTempUrl(e.target.value)} 
+                placeholder="https://calendly.com/your-name"
+                style={{
+                  background: 'var(--bg-dark)', border: '1px solid var(--border)', borderRadius: '6px',
+                  color: 'var(--text-main)', padding: '6px 10px', fontSize: '0.85rem', width: '250px'
+                }}
+              />
+              <button onClick={saveUrl} style={{
+                background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600
+              }}>Save</button>
+              <button onClick={() => { setIsEditing(false); setTempUrl(calendlyUrl); }} style={{
+                background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.8rem'
+              }}>Cancel</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+               <button onClick={() => window.open('https://calendly.com/app/scheduled_events/user/all', '_blank')} style={{
+                background: 'linear-gradient(135deg, #3b82f6, #2563eb)', border: 'none', borderRadius: '8px',
+                color: '#fff', padding: '8px 16px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px'
+              }}>
+                Manage Upcoming Calls ↗
+              </button>
+              <button onClick={() => setIsEditing(true)} style={{
+                background: 'var(--bg-dark)', border: '1px solid var(--border)', borderRadius: '8px',
+                color: 'var(--text-muted)', padding: '8px 16px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
+              }}>
+                Edit URL
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Calendly iFrame */}
+      <div className="glass" style={{ flex: 1, borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+        {calendlyUrl.includes('calendly.com') ? (
+          <iframe 
+            src={calendlyUrl} 
+            width="100%" 
+            height="100%" 
+            frameBorder="0" 
+            title="Calendly Booking Page"
+            style={{ display: 'block' }}
+          ></iframe>
+        ) : (
+          <div className="chat-empty" style={{ height: '100%' }}>
+            <Calendar size={48} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
+            <h3>Configure Your Scheduling Link</h3>
+            <p style={{ maxWidth: '400px', fontSize: '0.9rem' }}>
+              Click "Edit URL" above and paste your Calendly URL to view your scheduling page right here.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

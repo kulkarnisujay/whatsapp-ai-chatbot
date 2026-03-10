@@ -25,7 +25,7 @@ class LeadService {
 
   private readonly stmtInsertLead = db.prepare(`
     INSERT INTO leads (phone_number, profile_name, status, source, first_contact_at, last_contact_at, total_messages)
-    VALUES (?, ?, 'new', 'whatsapp', ?, ?, 0)
+    VALUES (?, ?, 'new', 'whatsapp', ?, ?, 1)
   `);
 
   private readonly stmtUpdateActivity = db.prepare(`
