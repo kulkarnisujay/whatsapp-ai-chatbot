@@ -17,7 +17,7 @@ class EmailService {
     if (this.transporter) return this.transporter;
 
     if (this.fromEmail && process.env['EMAIL_PASS']) {
-      this.transporter = nodemailer.createTransport({
+      const transporterOpts = {
         host: 'smtp.gmail.com',
         port: 465,
         secure: true,
@@ -25,7 +25,15 @@ class EmailService {
           user: this.fromEmail,
           pass: process.env['EMAIL_PASS'],
         },
-      });
+        tls: {
+          rejectUnauthorized: true,
+        },
+      };
+      
+      // Node.js socket option 'family: 4' to force IPv4 (bypasses Railway IPv6 issues)
+      (transporterOpts as any).family = 4;
+      
+      this.transporter = nodemailer.createTransport(transporterOpts);
       log.info(`Email Service initialized (from: ${this.fromEmail})`);
     } else {
       log.warn('Email Service disabled — EMAIL_USER or EMAIL_PASS not set in .env');
