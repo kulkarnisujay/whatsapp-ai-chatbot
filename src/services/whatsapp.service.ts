@@ -205,17 +205,6 @@ class WhatsAppService {
       return;
     }
 
-    // ─── Generate AI-powered response ────────────────────────────────
-    const aiResponse = await aiService.generateResponse(
-      textBody,
-      senderInfo.phoneNumber,
-      senderInfo.profileName
-    );
-
-    log.debug(`AI response (${aiResponse.length} chars): "${aiResponse.substring(0, 80)}..."`);
-
-    await this.sendTextMessage(senderInfo.phoneNumber, aiResponse);
-
     // ─── Email Detection & Brochure Sending ──────────────────────────
     const detectedEmail = emailService.extractEmail(textBody);
     if (detectedEmail) {
@@ -237,8 +226,24 @@ class WhatsAppService {
           senderInfo.phoneNumber,
           `✉️ I've just sent a detailed overview of our services and packages to *${detectedEmail}*! Please check your inbox (and spam folder, just in case). 😊\n\nIs there anything specific you'd like to discuss?`
         );
+        // If the message was super short (just their email and maybe a word or two), 
+        // skip sending it to the AI so the AI doesn't hallucinate a response.
+        if (textBody.length < detectedEmail.length + 15) {
+           return;
+        }
       }
     }
+
+    // ─── Generate AI-powered response ────────────────────────────────
+    const aiResponse = await aiService.generateResponse(
+      textBody,
+      senderInfo.phoneNumber,
+      senderInfo.profileName
+    );
+
+    log.debug(`AI response (${aiResponse.length} chars): "${aiResponse.substring(0, 80)}..."`);
+
+    await this.sendTextMessage(senderInfo.phoneNumber, aiResponse);
   }
 
   /**

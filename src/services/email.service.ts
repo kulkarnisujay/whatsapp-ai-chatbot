@@ -10,12 +10,11 @@ const log = createLogger('EmailService');
 
 class EmailService {
   private transporter: nodemailer.Transporter | null = null;
-  private readonly fromEmail: string;
-  private readonly fromName: string;
+  private get fromEmail(): string { return process.env['EMAIL_USER'] || ''; }
+  private get fromName(): string { return process.env['EMAIL_FROM_NAME'] || 'Aria | Your AI Assistant'; }
 
-  constructor() {
-    this.fromEmail = process.env['EMAIL_USER'] || '';
-    this.fromName = process.env['EMAIL_FROM_NAME'] || 'Aria | Your AI Assistant';
+  private getTransporter(): nodemailer.Transporter | null {
+    if (this.transporter) return this.transporter;
 
     if (this.fromEmail && process.env['EMAIL_PASS']) {
       this.transporter = nodemailer.createTransport({
@@ -29,6 +28,12 @@ class EmailService {
     } else {
       log.warn('Email Service disabled — EMAIL_USER or EMAIL_PASS not set in .env');
     }
+    
+    return this.transporter;
+  }
+
+  constructor() {
+    // Lazily load credentials to avoid dotenv import order bugs in server.ts
   }
 
   /**
@@ -44,7 +49,9 @@ class EmailService {
    * Sends the company brochure/services email to a lead.
    */
   async sendCompanyBrochure(toEmail: string, leadName: string): Promise<boolean> {
-    if (!this.transporter) {
+    const transporter = this.getTransporter();
+    
+    if (!transporter) {
       log.warn(`Cannot send email — transporter not configured`);
       return false;
     }
@@ -52,7 +59,7 @@ class EmailService {
     const htmlContent = this.buildBrochureHTML(leadName);
 
     try {
-      await this.transporter.sendMail({
+      await transporter.sendMail({
         from: `"${this.fromName}" <${this.fromEmail}>`,
         to: toEmail,
         subject: `Hey ${leadName}! Here's everything about our services 🚀`,
