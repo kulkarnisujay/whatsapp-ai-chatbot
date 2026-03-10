@@ -29,6 +29,9 @@ const whatsappConfig = {
   /** The webhook verification token (must match what you set in Meta Dashboard) */
   verifyToken: env.VERIFY_TOKEN,
 
+  /** App secret from Meta Developer Dashboard for verifying the webhook signature */
+  appSecret: process.env['META_APP_SECRET'] || '',
+
   /** Your WhatsApp Business phone number ID */
   phoneNumberId: getPhoneNumberId(),
 

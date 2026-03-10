@@ -65,6 +65,16 @@ class LeadService {
     VALUES (?, ?, ?, datetime('now'), datetime('now'), ?)
   `);
 
+  private readonly stmtUpdateScore = db.prepare(
+    'UPDATE leads SET lead_score = lead_score + ?, updated_at = ? WHERE phone_number = ?'
+  );
+  private readonly stmtGetScore = db.prepare(
+    'SELECT lead_score FROM leads WHERE phone_number = ?'
+  );
+  private readonly stmtSetScore = db.prepare(
+    'UPDATE leads SET lead_score = ?, updated_at = ? WHERE phone_number = ?'
+  );
+
   constructor() {
     log.info('Lead Service initialized');
   }
@@ -214,6 +224,9 @@ class LeadService {
       qualified: 0,
       converted: 0,
       unresponsive: 0,
+      hotLeads: 0,
+      warmLeads: 0,
+      coldLeads: 0,
     };
 
     for (const status of statuses) {
@@ -221,7 +234,62 @@ class LeadService {
       stats[status] = result.count;
     }
 
+    // Scoring Distribution
+    const hotResult = db.prepare('SELECT COUNT(*) as count FROM leads WHERE lead_score >= 60').get() as { count: number };
+    const warmResult = db.prepare('SELECT COUNT(*) as count FROM leads WHERE lead_score >= 30 AND lead_score < 60').get() as { count: number };
+    const coldResult = db.prepare('SELECT COUNT(*) as count FROM leads WHERE lead_score < 30').get() as { count: number };
+    
+    stats.hotLeads = hotResult.count;
+    stats.warmLeads = warmResult.count;
+    stats.coldLeads = coldResult.count;
+
     return stats;
+  }
+
+  // ─── Lead Scoring ─────────────────────────────────────────────────────────
+
+  /**
+   * Adds points to a lead's score for performing meaningful actions.
+   * Can accept negative points for score decay (e.g. going silent).
+   * 
+   * @param phoneNumber The lead's phone number
+   * @param points The number of points to add (can be negative)
+   * @param reason The reason for the score change (for logging)
+   */
+  addLeadScore(phoneNumber: string, points: number, reason: string): void {
+    const now = new Date().toISOString();
+    this.stmtUpdateScore.run(points, now, phoneNumber);
+    
+    // Safety check - we don't strictly enforce >0 in DB to allow negative scores 
+    // for completely dead leads, but it's good to log the current score.
+    const current = this.getLeadScore(phoneNumber);
+    log.info(`Scoring: Lead ${phoneNumber} +${points} (${reason}) → new score: ${current}`);
+  }
+
+  /**
+   * Gets the current score of a lead.
+   */
+  getLeadScore(phoneNumber: string): number {
+    const result = this.stmtGetScore.get(phoneNumber) as { lead_score: number } | undefined;
+    return result ? result.lead_score : 0;
+  }
+
+  /**
+   * Sets the score of a lead to an exact value.
+   */
+  setLeadScore(phoneNumber: string, score: number): void {
+    const now = new Date().toISOString();
+    this.stmtSetScore.run(score, now, phoneNumber);
+    log.info(`Scoring: Lead ${phoneNumber} manually set to score: ${score}`);
+  }
+
+  /**
+   * Returns the classification tier of a lead based on their score.
+   */
+  getLeadTier(score: number): 'hot' | 'warm' | 'cold' {
+    if (score >= 60) return 'hot';
+    if (score >= 30) return 'warm';
+    return 'cold';
   }
 
   // ─── Conversation Messages ──────────────────────────────────────────────

@@ -41,6 +41,7 @@ export interface Lead {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  lead_score: number;
 }
 
 /**
@@ -92,6 +93,9 @@ export interface LeadStats {
   qualified: number;
   converted: number;
   unresponsive: number;
+  hotLeads?: number;
+  warmLeads?: number;
+  coldLeads?: number;
 }
 
 /** Lead with their recent conversation messages */

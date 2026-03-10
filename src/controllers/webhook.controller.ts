@@ -3,6 +3,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import whatsappConfig from '../config/whatsapp.config';
 import whatsAppService from '../services/whatsapp.service';
 import {
@@ -65,6 +66,36 @@ export function verifyWebhook(req: Request, res: Response): void {
  * @param res - Express response — immediately returns 200
  */
 export function handleIncomingWebhook(req: Request, res: Response): void {
+  // ─── Webhook Signature Verification (Security) ────────────────────────
+  // Only verify if APP_SECRET is provided (allows local dev testing without it)
+  if (whatsappConfig.appSecret) {
+    const signature = req.headers['x-hub-signature-256'] as string;
+    
+    if (!signature) {
+      console.warn('❌ Dropping webhook: Missing x-hub-signature-256 header');
+      res.status(401).send('Unauthorized: Missing signature');
+      return;
+    }
+
+    const rawBody = (req as any).rawBody as Buffer | undefined;
+    if (!rawBody) {
+      console.warn('❌ Dropping webhook: Missing raw body buffer (check express.json config)');
+      res.status(500).send('Internal Server Error: Missing raw body');
+      return;
+    }
+
+    const expectedSignature = `sha256=${crypto
+      .createHmac('sha256', whatsappConfig.appSecret)
+      .update(rawBody)
+      .digest('hex')}`;
+
+    if (signature !== expectedSignature) {
+      console.warn('❌ Dropping webhook: Invalid signature (app secret mismatch)');
+      res.status(401).send('Unauthorized: Invalid signature');
+      return;
+    }
+  }
+
   // ⚡ IMMEDIATELY acknowledge receipt — Meta requires fast 200 response
   res.status(200).send('EVENT_RECEIVED');
 

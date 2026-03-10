@@ -232,11 +232,81 @@ export interface SendTextMessageBody {
   };
 }
 
+/** Typing indicator request body */
+export interface SendTypingIndicatorBody {
+  messaging_product: 'whatsapp';
+  to: string;
+  type: 'system';
+  system: {
+    action: 'typing_on';
+  }
+}
+
 /** Mark-as-read request body */
 export interface MarkAsReadBody {
   messaging_product: 'whatsapp';
   status: 'read';
   message_id: string;
+}
+
+/** Interactive button message — max 3 reply buttons */
+export interface SendButtonMessageBody {
+  messaging_product: 'whatsapp';
+  to: string;
+  type: 'interactive';
+  interactive: {
+    type: 'button';
+    header?: {
+      type: 'text';
+      text: string;
+    };
+    body: {
+      text: string;
+    };
+    footer?: {
+      text: string;
+    };
+    action: {
+      buttons: Array<{
+        type: 'reply';
+        reply: {
+          id: string;
+          title: string;  // Max 20 characters
+        };
+      }>;
+    };
+  };
+}
+
+/** Interactive list message — scrollable menu with sections */
+export interface SendListMessageBody {
+  messaging_product: 'whatsapp';
+  to: string;
+  type: 'interactive';
+  interactive: {
+    type: 'list';
+    header?: {
+      type: 'text';
+      text: string;
+    };
+    body: {
+      text: string;
+    };
+    footer?: {
+      text: string;
+    };
+    action: {
+      button: string;  // Label for the menu button (max 20 chars)
+      sections: Array<{
+        title: string;
+        rows: Array<{
+          id: string;
+          title: string;        // Max 24 characters
+          description?: string;  // Max 72 characters
+        }>;
+      }>;
+    };
+  };
 }
 
 /** Sender info extracted from webhook for convenience */

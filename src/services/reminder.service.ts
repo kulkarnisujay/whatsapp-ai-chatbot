@@ -8,6 +8,7 @@ import cron from 'node-cron';
 import leadService from './lead.service';
 import whatsappService from './whatsapp.service';
 import aiService from './ai.service';
+import { notificationService } from './notification.service';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('ReminderService');
@@ -44,6 +45,14 @@ class ReminderService {
             recentContext || 'No previous context available.'
           );
 
+          // Feature 5: Decay score before follow up (inactive > 24h)
+          leadService.addLeadScore(lead.phone_number, -10, 'inactive_24h');
+
+          // If they were already unresponsive before, decay more
+          if (lead.status === 'unresponsive') {
+             leadService.addLeadScore(lead.phone_number, -15, 'still_unresponsive_48h');
+          }
+
           // 3. Send via WhatsApp
           const success = await whatsappService.sendTextMessage(
             lead.phone_number,
@@ -61,11 +70,6 @@ class ReminderService {
             const updatedNotes = lead.notes ? `${lead.notes} | Sent automated follow-up.` : 'Sent automated follow-up.';
             leadService.updateLeadInfo(lead.phone_number, { 
               notes: updatedNotes,
-               // we do not revert status to new, keep it as is, but we could make it 'unresponsive' if multiple follow-ups fail.
-               // for now, let's keep status unchanged but update last_contact_at implicitly via findOrCreateLead or manual SQL update.
-               // Actually, updateLeadInfo updates updated_at, but NOT last_contact_at.
-               // If we want to bump last_contact_at, we could call findOrCreateLead again or update SQL.
-               // Let's just update the status to unresponsive for now to be safe, so they must reply to become engaged again.
               status: 'unresponsive'
             });
 
@@ -73,12 +77,17 @@ class ReminderService {
           } else {
             leadService.recordReminder(lead.id, 'follow_up', followUpMessage, 'failed');
             log.warn(`Failed to send follow-up to ${lead.phone_number}`);
+            
+            // Feature 4: Webhook Error Notification
+            notificationService.notifyHighIntent(lead.profile_name, 'Follow-up Delivery Failed', lead.phone_number);
           }
 
           // 5. Rate limit protection (Wait 5 seconds between leads)
           await new Promise((resolve) => setTimeout(resolve, 5000));
         } catch (leadError) {
           log.error(`Failed to process follow-up for lead ID ${lead.id}:`, leadError);
+          // Feature 4: Webhook Error Notification
+          notificationService.notifyHighIntent(lead.profile_name, `Follow-up Error: ${(leadError as Error).message}`, lead.phone_number);
           // Continue to next lead instead of crashing the batch
         }
       }

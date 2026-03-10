@@ -208,7 +208,7 @@ class EmailService {
             <td style="padding:20px 40px 10px; text-align:center;">
               <h2 style="margin:0 0 10px; color:#f0f6fc; font-size:18px;">Ready to get started?</h2>
               <p style="margin:0 0 20px; color:#8b949e; font-size:14px;">Book a free 30-minute discovery call with our team!</p>
-              <a href="#" style="display:inline-block; background:linear-gradient(135deg,#10b981,#059669); color:#ffffff; padding:14px 32px; border-radius:8px; text-decoration:none; font-weight:600; font-size:15px;">
+              <a href="${process.env['CALENDLY_URL'] || 'https://calendly.com'}" style="display:inline-block; background:linear-gradient(135deg,#10b981,#059669); color:#ffffff; padding:14px 32px; border-radius:8px; text-decoration:none; font-weight:600; font-size:15px;">
                 📞 Schedule Free Call
               </a>
             </td>

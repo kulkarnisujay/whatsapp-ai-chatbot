@@ -9,6 +9,7 @@ interface EnvironmentConfig {
   NODE_ENV: string;
   WHATSAPP_TOKEN: string;
   VERIFY_TOKEN: string;
+  CALENDLY_URL: string;
 }
 
 function getEnvVariable(key: string, required: boolean = true): string {
@@ -27,6 +28,7 @@ const env: EnvironmentConfig = {
   NODE_ENV: getEnvVariable('NODE_ENV', false) || 'development',
   WHATSAPP_TOKEN: getEnvVariable('WHATSAPP_TOKEN'),
   VERIFY_TOKEN: getEnvVariable('VERIFY_TOKEN'),
+  CALENDLY_URL: getEnvVariable('CALENDLY_URL', false) || '',
 };
 
 // Validate PORT is a valid number

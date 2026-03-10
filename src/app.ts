@@ -17,7 +17,12 @@ app.use(helmet({
 app.use(cors());
 
 // ─── Body Parsing Middleware ──────────────────────────────────────────
-app.use(express.json());
+// Custom JSON parser to capture raw request body for webhook signature verification
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    (req as any).rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // ─── Health Check ─────────────────────────────────────────────────────

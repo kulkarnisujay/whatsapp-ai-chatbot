@@ -10,6 +10,9 @@ export interface LeadStats {
   unresponsive: number;
   unresponsiveLeads: number;
   qualified: number;
+  hotLeads?: number;
+  warmLeads?: number;
+  coldLeads?: number;
 }
 
 export interface Lead {
@@ -27,6 +30,7 @@ export interface Lead {
   last_contacted_at: string;
   total_messages: number;
   message_count: number;
+  lead_score?: number;
   created_at: string;
   updated_at: string;
 }

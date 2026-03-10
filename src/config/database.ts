@@ -41,6 +41,9 @@ function initializeDatabase(): Database.Database {
   // Create tables
   createTables(db);
 
+  // Run migrations (if any column additions are needed post-creation)
+  runMigrations(db);
+
   // Create indexes
   createIndexes(db);
 
@@ -110,6 +113,18 @@ function createTables(db: Database.Database): void {
   `);
 
   log.debug('Tables created/verified: leads, conversation_messages, reminders');
+}
+
+/**
+ * Runs safe, idempotent migrations for schema updates (e.g., adding a new feature).
+ */
+function runMigrations(db: Database.Database): void {
+  try {
+    db.exec("ALTER TABLE leads ADD COLUMN lead_score INTEGER NOT NULL DEFAULT 0");
+    log.info('Migration: Added lead_score column');
+  } catch (e: any) {
+    if (!e.message.includes('duplicate column')) throw e;
+  }
 }
 
 /**
