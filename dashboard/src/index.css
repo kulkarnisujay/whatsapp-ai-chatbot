@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
 :root {
   --bg-dark: #0f1115;
@@ -17,16 +17,20 @@
   --warn: #d29922;
   --danger: #f85149;
   
-  --glass-bg: rgba(22, 27, 34, 0.6);
-  --glass-border: rgba(48, 54, 61, 0.5);
+  --glass-bg: rgba(22, 27, 34, 0.4);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
 body {
   margin: 0;
   padding: 0;
   background-color: var(--bg-dark);
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(16, 185, 129, 0.03), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(59, 130, 246, 0.03), transparent 25%);
   color: var(--text-main);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -43,9 +47,17 @@ body {
 /* Utilities */
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-glow);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.glass:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .text-gradient {
